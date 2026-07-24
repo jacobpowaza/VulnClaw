@@ -1064,9 +1064,11 @@ def infer_ports_from_nmap_args(args: dict[str, Any]) -> list[int]:
     return []
 
 
-def build_openai_tools(mcp_manager: Any, *, active_role: str | None = None) -> list[dict[str, Any]]:
+def build_openai_tools(mcp_manager: Any, *, active_role: str | None = None, lang: str | None = None) -> list[dict[str, Any]]:
     """Build OpenAI function calling schema from MCP tools + built-in tools."""
     tools: list[dict[str, Any]] = []
+
+    _t = lambda en, zh: en if lang != "zh-CN" else zh
 
     def append_tool(tool: dict[str, Any]) -> None:
         name = str(tool.get("function", {}).get("name", ""))
@@ -1434,7 +1436,8 @@ def build_openai_tools(mcp_manager: Any, *, active_role: str | None = None) -> l
             "type": "function",
             "function": {
                 "name": "python_execute",
-                "description": (
+                "description": _t(
+                    "Execute Python code snippets. Use for: constructing complex HTTP requests and parsing responses, encoding/decoding/data processing, batch-testing different payloads, comparing response differences, performing calculations, etc. Code runs in a sandboxed environment with a 30s timeout. Pre-installed libraries: requests, beautifulsoup4, pycryptodome, base64, json, re, etc. Prefer fetch or http_probe_batch for plain HTTP/HTTPS requests to avoid wasting context on manually written requests; use this only when complex parsing, payload generation, or batch logic is needed.",
                     "执行 Python 代码片段。用于：构造复杂 HTTP 请求并解析响应、"
                     "做编码转换和数据处理、批量测试不同 payload、比较响应差异、"
                     "执行数学计算等。代码在受限环境中执行，超时 30 秒。"
@@ -1447,11 +1450,11 @@ def build_openai_tools(mcp_manager: Any, *, active_role: str | None = None) -> l
                     "properties": {
                         "code": {
                             "type": "string",
-                            "description": "要执行的 Python 代码。支持多行，可 import 标准库和 requests/bs4 等。",
+                            "description": _t("Python code to execute. Supports multi-line, can import standard library and requests/bs4 etc.", "要执行的 Python 代码。支持多行，可 import 标准库和 requests/bs4 等。"),
                         },
                         "purpose": {
                             "type": "string",
-                            "description": "简要说明执行目的（用于审计日志），如'构造HTTP请求测试弱比较绕过'",
+                            "description": _t("Brief explanation of execution purpose (for audit log), e.g. 'Construct HTTP request to test weak comparison bypass'", "简要说明执行目的（用于审计日志），如'构造HTTP请求测试弱比较绕过'"),
                         },
                     },
                     "required": ["code"],
@@ -1465,7 +1468,8 @@ def build_openai_tools(mcp_manager: Any, *, active_role: str | None = None) -> l
             "type": "function",
             "function": {
                 "name": "crypto_decode",
-                "description": (
+                "description": _t(
+                    "Encoding/decoding and encryption/decryption tool. Call this when encountering base64/hex/URL/HTML/Unicode encoded strings, needing hash computation, AES/DES decryption, JWT parsing, etc. Important: do not guess decode results; always use this tool for accuracy. Supported operations: base64_encode/decode, base32_encode/decode, base58_encode/decode, hex_encode/decode, url_encode/decode, html_encode/decode, unicode_encode/decode, rot13_encode/decode, caesar_encode/decode, morse_encode/decode, md5_hash, sha1_hash, sha256_hash, sha512_hash, aes_encrypt/decrypt, jwt_decode/encode, auto_decode",
                     "编码解码与加解密工具。遇到 base64/hex/URL/HTML/Unicode 编码字符串、"
                     "需要计算哈希、解密 AES/DES、解析 JWT 等场景时调用此工具。"
                     "重要：不要自行脑补解码结果，始终使用此工具确保准确性。"
@@ -1478,21 +1482,21 @@ def build_openai_tools(mcp_manager: Any, *, active_role: str | None = None) -> l
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "operation": {"type": "string", "description": "操作名称"},
+                        "operation": {"type": "string", "description": _t("Operation name", "操作名称")},
                         "input": {
                             "type": "string",
-                            "description": "待处理的输入字符串（待编码/解码/哈希/加密的文本）",
+                            "description": _t("Input string to process (text to encode/decode/hash/encrypt)", "待处理的输入字符串（待编码/解码/哈希/加密的文本）"),
                         },
                         "key": {
                             "type": "string",
-                            "description": "加密/解密密钥（AES/DES 需要，16/24/32字节）",
+                            "description": _t("Encryption/decryption key (needed for AES/DES, 16/24/32 bytes)", "加密/解密密钥（AES/DES 需要，16/24/32字节）"),
                         },
-                        "iv": {"type": "string", "description": "AES 初始化向量（16字节，可选）"},
+                        "iv": {"type": "string", "description": _t("AES initialization vector (16 bytes, optional)", "AES 初始化向量（16字节，可选）")},
                         "shift": {
                             "type": "integer",
-                            "description": "Caesar 密码位移量（默认3，解码时不提供则暴力所有位移）",
+                            "description": _t("Caesar cipher shift (default 3; when decoding without shift, brute-force all shifts)", "Caesar 密码位移量（默认3，解码时不提供则暴力所有位移）"),
                         },
-                        "secret": {"type": "string", "description": "JWT 签名密钥"},
+                        "secret": {"type": "string", "description": _t("JWT signing key", "JWT 签名密钥")},
                     },
                     "required": ["operation", "input"],
                 },
@@ -1505,7 +1509,8 @@ def build_openai_tools(mcp_manager: Any, *, active_role: str | None = None) -> l
             "type": "function",
             "function": {
                 "name": "nmap_scan",
-                "description": (
+                "description": _t(
+                    "nmap network port scanning tool. Use when ports, service versions, or network attack surface affect the next decision.\nUsage examples:\n  Common ports: scan_type=top_ports, target=1.2.3.4\n  SYN scan: scan_type=syn, target=1.2.3.4 (requires admin)\n  Service version detection: scan_type=service, target=1.2.3.4\n  Vulnerability scan: scan_type=vuln, target=1.2.3.4\n  Full scan: scan_type=full, target=1.2.3.4\nIf you only need to verify a single HTTP/Web behavior, prefer lighter-weight tools.",
                     "nmap 网络端口扫描工具。适合在端口、服务版本或网络暴露面会影响下一步判断时使用。\n"
                     "用法示例：\n"
                     "  扫描常见端口: scan_type=top_ports, target=1.2.3.4\n"
@@ -1520,23 +1525,23 @@ def build_openai_tools(mcp_manager: Any, *, active_role: str | None = None) -> l
                     "properties": {
                         "target": {
                             "type": "string",
-                            "description": "目标 IP 地址或域名（必填），如 192.168.1.1 或 scanme.nmap.org",
+                            "description": _t("Target IP address or domain (required), e.g. 192.168.1.1 or scanme.nmap.org", "目标 IP 地址或域名（必填），如 192.168.1.1 或 scanme.nmap.org"),
                         },
                         "scan_type": {
                             "type": "string",
-                            "description": "扫描类型：top_ports/syn/tcp/service/os/vuln/full",
+                            "description": _t("Scan type: top_ports/syn/tcp/service/os/vuln/full", "扫描类型：top_ports/syn/tcp/service/os/vuln/full"),
                         },
                         "ports": {
                             "type": "string",
-                            "description": "指定端口或范围（可选），如 80,443,8080 或 1-1000",
+                            "description": _t("Specify port(s) or range (optional), e.g. 80,443,8080 or 1-1000", "指定端口或范围（可选），如 80,443,8080 或 1-1000"),
                         },
                         "timing": {
                             "type": "integer",
-                            "description": "扫描速度模板 0-5（默认4），数字越大越快但越容易被检测",
+                            "description": _t("Scan speed template 0-5 (default 4); higher is faster but more detectable", "扫描速度模板 0-5（默认4），数字越大越快但越容易被检测"),
                         },
                         "profile": {
                             "type": "string",
-                            "description": "可选网络扫描画像：adaptive/fast/thorough/stealth。画像会联动调整端口、速度、服务探测与安全脚本。",
+                            "description": _t("Optional scan profile: adaptive/fast/thorough/stealth. Profile coordinates port range, speed, service probe, and security scripts.", "可选网络扫描画像：adaptive/fast/thorough/stealth。画像会联动调整端口、速度、服务探测与安全脚本。"),
                         },
                     },
                     "required": ["target"],
@@ -1550,7 +1555,8 @@ def build_openai_tools(mcp_manager: Any, *, active_role: str | None = None) -> l
             "type": "function",
             "function": {
                 "name": "brute_force_login",
-                "description": (
+                "description": _t(
+                    "Password brute-force against login forms. Automatically manages session cookies, auto-extracts and refreshes CSRF tokens, detects login success/failure. Completes all password attempts in a single call and returns results for each password.",
                     "对登录表单进行密码爆破。自动管理 Session Cookie、"
                     "自动提取和更新 CSRF Token、判断登录成功/失败。"
                     "单次调用内完成所有密码尝试，返回每个密码的结果。"
@@ -1560,44 +1566,44 @@ def build_openai_tools(mcp_manager: Any, *, active_role: str | None = None) -> l
                     "properties": {
                         "url": {
                             "type": "string",
-                            "description": "登录页面 URL",
+                            "description": _t("Login page URL", "登录页面 URL"),
                         },
                         "username_field": {
                             "type": "string",
-                            "description": "用户名字段名，如 'username'",
+                            "description": _t("Username field name, e.g. 'username'", "用户名字段名，如 'username'"),
                         },
                         "password_field": {
                             "type": "string",
-                            "description": "密码字段名，如 'password'",
+                            "description": _t("Password field name, e.g. 'password'", "密码字段名，如 'password'"),
                         },
                         "csrf_field": {
                             "type": "string",
-                            "description": "CSRF token 字段名，如 'user_token'",
+                            "description": _t("CSRF token field name, e.g. 'user_token'", "CSRF token 字段名，如 'user_token'"),
                         },
                         "username": {
                             "type": "string",
-                            "description": "要爆破的用户名",
+                            "description": _t("Username to brute-force", "要爆破的用户名"),
                         },
                         "passwords": {
                             "type": "array",
                             "items": {"type": "string"},
-                            "description": "要尝试的密码列表（最多 20 个）",
+                            "description": _t("List of passwords to try (max 20)", "要尝试的密码列表（最多 20 个）"),
                         },
                         "success_keyword": {
                             "type": "string",
-                            "description": "登录成功后页面出现的特征词，如 'Welcome'、'Dashboard'",
+                            "description": _t("Keyword on the page after successful login, e.g. 'Welcome', 'Dashboard'", "登录成功后页面出现的特征词，如 'Welcome'、'Dashboard'"),
                         },
                         "failure_keyword": {
                             "type": "string",
-                            "description": "登录失败后页面出现的特征词，如 'Login failed'",
+                            "description": _t("Keyword on the page after failed login, e.g. 'Login failed'", "登录失败后页面出现的特征词，如 'Login failed'"),
                         },
                         "submit_action": {
                             "type": "string",
-                            "description": "表单提交的目标 URL（可选，不指定则从表单 action 属性提取）",
+                            "description": _t("Form submission target URL (optional; extracted from form action if not given)", "表单提交的目标 URL（可选，不指定则从表单 action 属性提取）"),
                         },
                         "extra_data": {
                             "type": "object",
-                            "description": "额外表单字段，如 {\"Login\": \"Login\"}",
+                            "description": _t("Extra form fields, e.g. {\"Login\": \"Login\"}", "额外表单字段，如 {\"Login\": \"Login\"}"),
                         },
                     },
                     "required": ["url", "password_field", "passwords"],
@@ -1611,7 +1617,8 @@ def build_openai_tools(mcp_manager: Any, *, active_role: str | None = None) -> l
             "type": "function",
             "function": {
                 "name": "space_search",
-                "description": (
+                "description": _t(
+                    "Cyberspace asset search (FOFA/Hunter/Quake/Shodan/ZoomEye/0.zone). Use when you need to passively discover target assets, IPs, ports, subdomains, titles, or component fingerprints without directly touching the target. Providing a domain auto-constructs domain queries for each engine's syntax; you can also pass a full raw query. engine=all queries all configured engines concurrently.",
                     "空间测绘资产搜索（FOFA/Hunter/Quake/Shodan/ZoomEye/0.zone 零零信安）。"
                     "可在需要被动发现目标资产、IP、端口、子域、标题或组件指纹时使用，不直接接触目标。"
                     "给 domain 自动按各引擎语法构造 domain 查询；也可传完整 query 语法。"
@@ -1622,17 +1629,17 @@ def build_openai_tools(mcp_manager: Any, *, active_role: str | None = None) -> l
                     "properties": {
                         "engine": {
                             "type": "string",
-                            "description": "fofa/hunter/quake/shodan/zoomeye/zerozone/all，默认 fofa",
+                            "description": _t("fofa/hunter/quake/shodan/zoomeye/zerozone/all, default fofa", "fofa/hunter/quake/shodan/zoomeye/zerozone/all，默认 fofa"),
                         },
                         "query": {
                             "type": "string",
-                            "description": "引擎原生查询语法，如 'domain=\"x.com\"'、'app=\"Struts2\"'（可选）",
+                            "description": _t("Engine native query syntax, e.g. 'domain=\"x.com\"', 'app=\"Struts2\"' (optional)", "引擎原生查询语法，如 'domain=\"x.com\"'、'app=\"Struts2\"'（可选）"),
                         },
                         "domain": {
                             "type": "string",
-                            "description": "目标主域名，自动构造各引擎 domain 查询（query 未给时使用）",
+                            "description": _t("Target domain; auto-constructs engine-specific domain queries (used when query is not given)", "目标主域名，自动构造各引擎 domain 查询（query 未给时使用）"),
                         },
-                        "size": {"type": "integer", "description": "返回条数，默认 100"},
+                        "size": {"type": "integer", "description": _t("Number of results, default 100", "返回条数，默认 100")},
                     },
                 },
             },
@@ -1644,17 +1651,18 @@ def build_openai_tools(mcp_manager: Any, *, active_role: str | None = None) -> l
             "type": "function",
             "function": {
                 "name": "subdomain_enum",
-                "description": (
+                "description": _t(
+                    "Subdomain enumeration. First passively aggregates results from configured cyberspace search engines, then does DNS brute-force with a small built-in wordlist, returning a deduplicated list of live subdomains. The model decides when enumeration is needed for the current task.",
                     "子域名枚举。先用已配置的空间测绘引擎被动聚合，再用内置小字典做 DNS 解析爆破，"
                     "返回去重后的存活子域名列表；是否需要枚举由模型根据当前任务判断。"
                 ),
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "domain": {"type": "string", "description": "主域名，如 nju.edu.cn"},
+                        "domain": {"type": "string", "description": _t("Root domain, e.g. nju.edu.cn", "主域名，如 nju.edu.cn")},
                         "brute": {
                             "type": "boolean",
-                            "description": "是否启用内置字典 DNS 爆破（默认 true）",
+                            "description": _t("Whether to enable built-in wordlist DNS brute-force (default true)", "是否启用内置字典 DNS 爆破（默认 true）"),
                         },
                     },
                     "required": ["domain"],
@@ -1668,7 +1676,8 @@ def build_openai_tools(mcp_manager: Any, *, active_role: str | None = None) -> l
             "type": "function",
             "function": {
                 "name": "js_recon",
-                "description": (
+                "description": _t(
+                    "JS reconnaissance (inspired by URLFinder). Fetches the target page and every .js file it references, extracting API endpoints/paths, related domains, absolute URLs, and suspected hardcoded secrets (AK/SK, tokens, JWTs, private keys, etc). Defaults to auto_probe=true: automatically runs unauthenticated-access probing against collected same-origin endpoints (safe GET only, skips destructive endpoints). Use when page scripts likely contain endpoints, paths, or hardcoded clues.",
                     "JS 信息收集（参考 URLFinder）。抓取目标页面及其引用的全部 .js 文件，"
                     "提取 API 接口/路径、关联域名、绝对 URL，以及疑似硬编码密钥（AK/SK、token、JWT、私钥等）。"
                     "默认 auto_probe=true：自动对收集到的同源接口逐个做未授权访问探测（仅安全 GET，跳过破坏性接口）。"
@@ -1677,18 +1686,18 @@ def build_openai_tools(mcp_manager: Any, *, active_role: str | None = None) -> l
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "url": {"type": "string", "description": "目标页面 URL"},
+                        "url": {"type": "string", "description": _t("Target page URL", "目标页面 URL")},
                         "max_js": {
                             "type": "integer",
-                            "description": "最多抓取的 JS 文件数（默认 30）",
+                            "description": _t("Max number of JS files to fetch (default 30)", "最多抓取的 JS 文件数（默认 30）"),
                         },
                         "auto_probe": {
                             "type": "boolean",
-                            "description": "是否自动对收集到的接口做未授权探测（默认 true）",
+                            "description": _t("Whether to auto-probe collected endpoints for unauthenticated access (default true)", "是否自动对收集到的接口做未授权探测（默认 true）"),
                         },
                         "auth_header": {
                             "type": "string",
-                            "description": "可选鉴权头做差分对比，如 'Authorization: Bearer xxx'，验证无 token 是否也能拿到数据",
+                            "description": _t("Optional auth header for a with/without-token diff, e.g. 'Authorization: Bearer xxx', to verify whether data is reachable without a token", "可选鉴权头做差分对比，如 'Authorization: Bearer xxx'，验证无 token 是否也能拿到数据"),
                         },
                     },
                     "required": ["url"],
@@ -1702,7 +1711,8 @@ def build_openai_tools(mcp_manager: Any, *, active_role: str | None = None) -> l
             "type": "function",
             "function": {
                 "name": "unauth_test",
-                "description": (
+                "description": _t(
+                    "Unauthenticated-access probing. Sends credential-less requests to a batch of endpoints (usually collected from js_recon), one at a time, and classifies each by status code/body/content-type: ⚠ possibly unauthenticated (data returned) / ✓ auth-protected / ↪ redirected to login / — not found. When auth_header is supplied, does a with/without-token diff; if the same data is reachable without a token, marks it 🔴 confirmed unauthenticated. Strictly read-only: only safe GET requests, automatically skips destructive endpoints like delete/update/sms, and does not bulk-enumerate IDs.",
                     "未授权访问探测。对一批接口（通常来自 js_recon 收集的端点）逐个无凭据请求，"
                     "按状态码/响应体/内容类型判定：⚠疑似未授权(返回数据) / ✓已鉴权拦截 / ↪跳转登录 / —不存在。"
                     "提供 auth_header 时做有/无 token 差分对比，无 token 也能拿到同样数据则判定 🔴未授权确认。"
@@ -1711,19 +1721,19 @@ def build_openai_tools(mcp_manager: Any, *, active_role: str | None = None) -> l
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "base_url": {"type": "string", "description": "目标基础 URL（确定同源范围）"},
+                        "base_url": {"type": "string", "description": _t("Target base URL (determines same-origin scope)", "目标基础 URL（确定同源范围）")},
                         "endpoints": {
                             "type": "array",
                             "items": {"type": "string"},
-                            "description": "待测接口路径/URL 列表（来自 js_recon 的接口/路径）",
+                            "description": _t("List of endpoint paths/URLs to test (from js_recon-collected endpoints/paths)", "待测接口路径/URL 列表（来自 js_recon 的接口/路径）"),
                         },
                         "auth_header": {
                             "type": "string",
-                            "description": "可选鉴权头做差分，如 'Authorization: Bearer xxx' 或 'Cookie: session=...'",
+                            "description": _t("Optional auth header for a diff, e.g. 'Authorization: Bearer xxx' or 'Cookie: session=...'", "可选鉴权头做差分，如 'Authorization: Bearer xxx' 或 'Cookie: session=...'"),
                         },
                         "max_endpoints": {
                             "type": "integer",
-                            "description": "最多探测的接口数（默认 60）",
+                            "description": _t("Max number of endpoints to probe (default 60)", "最多探测的接口数（默认 60）"),
                         },
                     },
                     "required": ["base_url", "endpoints"],
@@ -1737,7 +1747,8 @@ def build_openai_tools(mcp_manager: Any, *, active_role: str | None = None) -> l
             "type": "function",
             "function": {
                 "name": "dir_enum",
-                "description": (
+                "description": _t(
+                    "Directory/file enumeration (inspired by dirsearch). Concurrent wordlist brute-force with built-in 404 baselining and global soft-404 detection (a random path returning 200 flags soft-404 and stops), plus status-code and response-length filtering. Only safe GET probing; never touches destructive paths like delete/update.",
                     "目录/文件枚举（参考 dirsearch）。并发字典爆破，自带 404 基线与全局伪装响应识别"
                     "（随机路径返回 200 即判定伪装并停止）、状态码与响应长度过滤。"
                     "仅做安全的 GET 探测，不碰 delete/update 等破坏性路径。"
@@ -1745,16 +1756,16 @@ def build_openai_tools(mcp_manager: Any, *, active_role: str | None = None) -> l
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "url": {"type": "string", "description": "目标基础 URL，如 https://x.com/"},
+                        "url": {"type": "string", "description": _t("Target base URL, e.g. https://x.com/", "目标基础 URL，如 https://x.com/")},
                         "extensions": {
                             "type": "array",
                             "items": {"type": "string"},
-                            "description": "扩展名展开，如 ['php','jsp','bak','zip']（可选）",
+                            "description": _t("Extensions to expand, e.g. ['php','jsp','bak','zip'] (optional)", "扩展名展开，如 ['php','jsp','bak','zip']（可选）"),
                         },
                         "wordlist": {
                             "type": "array",
                             "items": {"type": "string"},
-                            "description": "追加的自定义路径（基于命名规律的启发式字典，可选）",
+                            "description": _t("Additional custom paths (heuristic wordlist based on naming patterns, optional)", "追加的自定义路径（基于命名规律的启发式字典，可选）"),
                         },
                     },
                     "required": ["url"],

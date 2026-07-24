@@ -1,33 +1,33 @@
 ---
 name: vuln-discovery
-description: 漏洞发现流程 — 基于信息收集结果扫描漏洞
+description: Vulnerability discovery workflow — scan for vulnerabilities based on reconnaissance results
 ---
 
-# 漏洞发现 Skill
+# Vulnerability Discovery Skill
 
-基于信息收集结果，系统性地发现目标存在的安全漏洞。
+Systematically discover security vulnerabilities in the target based on information gathering results.
 
-## 执行步骤
+## Execution Steps
 
-### 1. 已知 CVE 匹配
-- 根据已识别的服务版本搜索对应 CVE
-- 优先关注 Critical/High 级别
-- 记录 CVE ID、影响版本、利用条件
+### 1. Known CVE Matching
+- Search corresponding CVEs based on identified service versions
+- Prioritize Critical/High severity
+- Record CVE ID, affected versions, exploitation conditions
 
-### 2. Web 漏洞扫描
-- SQL 注入检测
-- XSS 检测（反射型/存储型/DOM型）
-- SSRF 检测
-- LFI/RFI 检测
-- 命令注入检测
-- 文件上传漏洞检测
+### 2. Web Vulnerability Scanning
+- SQL Injection detection
+- XSS detection (Reflected/Stored/DOM-based)
+- SSRF detection
+- LFI/RFI detection
+- Command Injection detection
+- File Upload vulnerability detection
 
-### 3. 配置缺陷检测
-- 默认凭据测试
-- 信息泄露检测
-- 未授权访问检测
-- CORS 配置检测
-- HTTPS 配置检测
+### 3. Configuration Defect Detection
+- Default credential testing
+- Information disclosure detection
+- Unauthorized access detection
+- CORS misconfiguration detection
+- HTTPS configuration detection
 
-### 4. 输出
-- 漏洞列表（类型、严重等级、URL、参数、验证方法）
+### 4. Output
+- Vulnerability list (type, severity, URL, parameter, verification method)

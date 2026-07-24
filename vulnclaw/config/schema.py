@@ -16,6 +16,7 @@ class LLMProvider(str, Enum):
 
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
+    OPENCODE = "opencode"
     MINIMAX = "minimax"
     DEEPSEEK = "deepseek"
     ZHIPU = "zhipu"
@@ -41,6 +42,11 @@ PROVIDER_PRESETS: dict[LLMProvider, dict[str, str]] = {
         "base_url": "https://api.anthropic.com/v1",
         "default_model": "claude-sonnet-5",
         "label": "Anthropic Claude",
+    },
+    LLMProvider.OPENCODE: {
+        "base_url": "https://opencode.ai/zen/v1",
+        "default_model": "opencode/deepseek-v4-flash-free",
+        "label": "OpenCode Free",
     },
     LLMProvider.MINIMAX: {
         "base_url": "https://api.minimaxi.com/v1",
@@ -110,7 +116,7 @@ class LLMConfig(BaseModel):
 
     provider: str = Field(
         default="openai",
-        description="LLM provider name (openai/anthropic/minimax/deepseek/zhipu/moonshot/qwen/siliconflow/doubao/baichuan/stepfun/sensetime/yi/custom)",
+        description="LLM provider name (openai/anthropic/opencode/minimax/deepseek/zhipu/moonshot/qwen/siliconflow/doubao/baichuan/stepfun/sensetime/yi/custom)",
     )
     api_key: str = Field(default="", description="Static API key for the chosen provider (auth_mode=static)")
     api_keys: list[str] = Field(
@@ -144,6 +150,10 @@ class LLMConfig(BaseModel):
         description="OpenAI-compatible API base URL (auto-filled by provider)",
     )
     model: str = Field(default="gpt-4o", description="Model name to use (auto-filled by provider)")
+    extra_models: list[str] = Field(
+        default_factory=list,
+        description="Additional model names merged into the provider model picker (e.g. local models connected via OpenCode)",
+    )
     max_tokens: int = Field(default=4096, description="Max tokens per response")
     max_context_tokens: int = Field(
         default=128000, description="Max context window tokens before sliding-window truncation"

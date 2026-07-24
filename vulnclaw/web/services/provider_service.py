@@ -79,9 +79,29 @@ def fetch_models(request: ProviderModelsRequest) -> ProviderModelsResponse:
     never to an arbitrary client-supplied host — to avoid SSRF-style key
     exfiltration via a spoofed base_url.
     Returns an empty list with a hint when no key is configured.
+
+    Special case: the ``opencode`` provider uses the local CLI and does
+    **not** require an API key, so the key checks are bypassed.
     """
     config = load_config()
     base_url = _resolve_base_url(request, config.llm.base_url)
+
+    # OpenCode provider: keyless local CLI discovery
+    _is_opencode = (
+        request.provider and request.provider.lower() == "opencode"
+    ) or "opencode" in base_url.lower()
+
+    if _is_opencode:
+        extra = getattr(config.llm, "extra_models", None) or []
+        models = fetch_provider_models(base_url, "", extra_models=extra)
+        detail = "" if models else "No models found via `opencode models`. Is OpenCode configured?"
+        return ProviderModelsResponse(
+            base_url=base_url,
+            models=models,
+            has_api_key=True,
+            detail=detail,
+        )
+
     api_key = config.llm.primary_key()
 
     if not api_key:

@@ -4,7 +4,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
-from vulnclaw.agent.prompts import AUTO_PENTEST_INSTRUCTION, RECON_INSTRUCTION, build_system_prompt
+from vulnclaw.agent.prompts import (
+    AUTO_PENTEST_INSTRUCTION,
+    EN_AUTO_PENTEST_INSTRUCTION,
+    EN_RECON_INSTRUCTION,
+    RECON_INSTRUCTION,
+    build_system_prompt,
+)
+from vulnclaw.i18n import get_current_lang
 
 if TYPE_CHECKING:
     from vulnclaw.agent.context import TaskConstraints
@@ -23,6 +30,9 @@ def build_dynamic_system_prompt(
     task_constraints: Optional["TaskConstraints"] = None,
 ) -> str:
     """Build the dynamic system prompt for one turn."""
+    lang = get_current_lang()
+    use_en = lang.startswith("en")
+
     prompt = build_system_prompt(
         target=target,
         phase=phase,
@@ -32,10 +42,33 @@ def build_dynamic_system_prompt(
     )
 
     if auto_mode:
-        prompt += "\n\n" + AUTO_PENTEST_INSTRUCTION
+        instruction = EN_AUTO_PENTEST_INSTRUCTION if use_en else AUTO_PENTEST_INSTRUCTION
+        prompt += "\n\n" + instruction
 
     if user_input:
-        recon_triggers = [
+        recon_triggers_en = [
+            "recon",
+            "osint",
+            "information gathering",
+            "gather",
+            "collect",
+            "investigate",
+            "social engineering",
+            "soceng",
+            "survey",
+            "analysis",
+            "discover",
+            "asset",
+            "subdomain",
+            "whois",
+            "footprint",
+            "reconnaissance",
+            "intel",
+            "profile",
+            "person",
+            "author",
+        ]
+        recon_triggers_zh = [
             "搜集",
             "收集",
             "信息收集",
@@ -53,37 +86,46 @@ def build_dynamic_system_prompt(
             "资产发现",
             "子域名",
         ]
+        recon_triggers = recon_triggers_en if use_en else recon_triggers_zh
         if any(trigger in user_input.lower() for trigger in recon_triggers):
             if enable_personnel_dim:
-                prompt += "\n\n" + RECON_INSTRUCTION
+                recon = EN_RECON_INSTRUCTION if use_en else RECON_INSTRUCTION
+                prompt += "\n\n" + recon
             else:
-                recon_no_personnel = RECON_INSTRUCTION.replace(
-                    "### 维度四：人员信息 ⚡ 条件触发",
-                    "### 维度四：人员信息 ⚡ 条件触发（本次未激活 — 用户未提及社工/人员追踪需求）",
-                )
-                recon_no_personnel = (
-                    recon_no_personnel.replace(
-                        "- [ ] 姓名 & 职务",
-                        "- [x] 姓名 & 职务（未激活，跳过）",
+                if use_en:
+                    recon_no_dim4 = EN_RECON_INSTRUCTION.replace(
+                        "### Dimension 4: Personnel Information * Conditional Trigger",
+                        "### Dimension 4: Personnel Information * Conditional Trigger (inactive -- user did not mention social engineering)",
                     )
-                    .replace(
-                        "- [ ] 生日 & 联系电话",
-                        "- [x] 生日 & 联系电话（未激活，跳过）",
+                    prompt += "\n\n" + recon_no_dim4
+                else:
+                    recon_no_personnel = RECON_INSTRUCTION.replace(
+                        "### 维度四：人员信息 ⚡ 条件触发",
+                        "### 维度四：人员信息 ⚡ 条件触发（本次未激活 — 用户未提及社工/人员追踪需求）",
                     )
-                    .replace(
-                        "- [ ] 邮件地址",
-                        "- [x] 邮件地址（未激活，跳过）",
+                    recon_no_personnel = (
+                        recon_no_personnel.replace(
+                            "- [ ] 姓名 & 职务",
+                            "- [x] 姓名 & 职务（未激活，跳过）",
+                        )
+                        .replace(
+                            "- [ ] 生日 & 联系电话",
+                            "- [x] 生日 & 联系电话（未激活，跳过）",
+                        )
+                        .replace(
+                            "- [ ] 邮件地址",
+                            "- [x] 邮件地址（未激活，跳过）",
+                        )
+                        .replace(
+                            "- [ ] 社交媒体账号（B站、微博、知乎、Twitter、LinkedIn、GitHub）",
+                            "- [x] 社交媒体账号（未激活，跳过）",
+                        )
+                        .replace(
+                            "- [ ] 跨平台关联（用用户名/邮箱搜索其他平台，检查历史提交记录中的邮箱）",
+                            "- [x] 跨平台关联（未激活，跳过）",
+                        )
                     )
-                    .replace(
-                        "- [ ] 社交媒体账号（B站、微博、知乎、Twitter、LinkedIn、GitHub）",
-                        "- [x] 社交媒体账号（未激活，跳过）",
-                    )
-                    .replace(
-                        "- [ ] 跨平台关联（用用户名/邮箱搜索其他平台，检查历史提交记录中的邮箱）",
-                        "- [x] 跨平台关联（未激活，跳过）",
-                    )
-                )
-                prompt += "\n\n" + recon_no_personnel
+                    prompt += "\n\n" + recon_no_personnel
 
     if kb_context:
         prompt += "\n\n" + kb_context

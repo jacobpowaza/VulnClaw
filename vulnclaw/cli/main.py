@@ -102,12 +102,12 @@ def _emit_solve_report_if_completed(agent: Any, config: Any) -> str:
         report_path = generate_solve_report(state)
         report_text = report_path.read_text(encoding="utf-8")
     except Exception as exc:
-        console.print(Panel(f"自动 solve 报告生成失败: {exc}", title="Solve Report", border_style="red"))
+        console.print(Panel(f"Auto solve report generation failed: {exc}", title="Solve Report", border_style="red"))
         return ""
 
     console.print(
         Panel(
-            f"自动复盘报告已保存:\n{report_path}",
+            f"Auto replay report saved:\n{report_path}",
             title="Solve Report",
             border_style="cyan",
         )
@@ -352,7 +352,7 @@ def _run_repl() -> None:
             if user_input.lower() in ("/compact", "compact"):
                 summary = agent.context.compact_messages(note="User requested /compact.")
                 console.print(
-                    f"[green]已压缩较早上下文[/green]，保留最近消息；摘要长度 {len(summary)} 字符。"
+                    f"[green]Compressed earlier context[/green], kept recent messages; summary is {len(summary)} chars."
                 )
                 continue
 
@@ -630,11 +630,11 @@ def _run_repl() -> None:
                                 console.print()
                                 console.print(
                                     Panel(
-                                        f"{'✅ 目标达成' if done else '⊘ 未达成'} — "
+                                        f"{'✅ Goal completed' if done else '⊘ Goal not reached'} — "
                                         f"steps={agent_state.get('steps', 0)} "
                                         f"evidence={agent_state.get('evidence', 0)} "
                                         f"tools={agent_state.get('tool_calls', 0)}\n"
-                                        f"原因: {agent_state.get('complete_reason') or '仍未达到完成条件'}",
+                                        f"reason: {agent_state.get('complete_reason') or 'Not yet reached completion condition'}",
                                         title="Solve",
                                         border_style="green" if done else "yellow",
                                     )
@@ -1230,12 +1230,12 @@ def run(
     orchestrated = asyncio.run(_run())
     if agent_state_holder.get("agent_state"):
         agent_state = agent_state_holder["agent_state"]
-        status = "✅ 目标达成" if agent_state.get("completed") else "⊘ 未达成"
+        status = "✅ Goal completed" if agent_state.get("completed") else "⊘ Goal not reached"
         console.print(
             f"\n[bold]{status}[/bold] — steps={agent_state.get('steps', 0)} "
             f"evidence={agent_state.get('evidence', 0)} "
             f"tools={agent_state.get('tool_calls', 0)} "
-            f"原因: {agent_state.get('complete_reason') or '仍未达到完成条件'}"
+            f"reason: {agent_state.get('complete_reason') or 'Not yet reached completion condition'}"
         )
     else:
         total_findings = orchestrated.summary["findings_count"]
@@ -1289,9 +1289,10 @@ def solve(
         err_console.print("[!] Configure LLM credentials first (api_key or auth_mode).")
         raise typer.Exit(1)
 
-    resolved_goal = goal or "找到 flag / 拿到 shell / 确认并验证高价值漏洞"
+    resolved_goal = goal or "Find flag / get shell / confirm and verify high-value vulnerabilities"
     task_prompt = prompt or (
-        f"对 {target} 进行授权渗透测试。这是明确授权、在范围内的目标。目标(goal)：{resolved_goal}。"
+        f"Perform authorized penetration testing against {target}. "
+        f"This target is in scope and explicitly authorized. Goal: {resolved_goal}."
     )
     console.print(f"[*] Target: [bold]{target}[/] | Goal: [bold]{resolved_goal}[/]")
 
@@ -1335,12 +1336,12 @@ def solve(
 
     asyncio.run(_run())
     agent_state = holder.get("agent_state") or {}
-    status = "✅ 目标达成" if agent_state.get("completed") else "⊘ 未达成"
+    status = "✅ Goal completed" if agent_state.get("completed") else "⊘ Goal not reached"
     console.print(
         f"\n[bold]{status}[/bold] — steps={agent_state.get('steps', 0)} "
         f"evidence={agent_state.get('evidence', 0)} "
         f"tools={agent_state.get('tool_calls', 0)} "
-        f"原因: {agent_state.get('complete_reason') or '仍未达到完成条件'}"
+        f"reason: {agent_state.get('complete_reason') or 'Not yet reached completion condition'}"
     )
     if agent_state.get("completed"):
         # ``holder`` stores only the summary for status printing, so generate
@@ -1719,45 +1720,45 @@ def scan(
 @app.command("network-scan")
 def network_scan(
     target: Optional[str] = typer.Argument(
-        None, help="目标主机/IP/CIDR，默认使用当前连接的 Wi-Fi 子网"
+        None, help="Target host/IP/CIDR, defaults to the connected Wi-Fi subnet"
     ),
     profile: str = typer.Option(
         "adaptive",
         "--profile",
-        help="网络扫描画像：adaptive、fast、thorough、stealth",
+        help="Network scan profile: adaptive, fast, thorough, stealth",
     ),
-    ports: Optional[str] = typer.Option(None, "--ports", help="端口范围，如 80,443,1-1000"),
+    ports: Optional[str] = typer.Option(None, "--ports", help="Port range, e.g. 80,443,1-1000"),
     max_rounds: int = typer.Option(
-        0, "--max-rounds", help="Agent 后续跟进轮数（0=使用配置默认值）"
+        0, "--max-rounds", help="Agent follow-up rounds (0 = use config default)"
     ),
     parallel_agents: int = typer.Option(
         1,
         "--parallel-agents",
         min=1,
-        help="在已发现的攻击面上并行派生的子 Agent 数量（1 表示不启用并行）",
+        help="Number of child agents spawned in parallel across discovered surfaces (1 = no parallelism)",
     ),
     parallel_depth: int = typer.Option(
         1,
         "--parallel-depth",
         min=1,
-        help="子 Agent 攻击面发现的有界波次数",
+        help="Bounded BFS depth for child-agent surface discovery",
     ),
     worker_rounds: int = typer.Option(
         3,
         "--worker-rounds",
         min=1,
-        help="每个子 Agent worker 的执行轮数",
+        help="Execution rounds per child-agent worker",
     ),
     surface_limit: int = typer.Option(
         20,
         "--surface-limit",
         min=1,
-        help="用于子 Agent 并行派生的最大攻击面数量",
+        help="Max surfaces considered for child-agent parallel dispatch",
     ),
     safe_probes: bool = typer.Option(
         True,
         "--safe-probes/--no-safe-probes",
-        help="nmap 扫描后默认仅执行非破坏性的验证探测",
+        help="Only non-destructive verification probes after nmap scan",
     ),
     prompt: Optional[str] = typer.Option(
         None, "--prompt", help="Custom natural language prompt (overrides auto-generated prompt)"
@@ -1797,10 +1798,10 @@ def network_scan(
     force_fresh: bool = typer.Option(False, "--force-fresh", help="Start a fresh run"),
     no_import: bool = typer.Option(False, "--no-import", help="Do not import legacy state"),
 ) -> None:
-    """运行基于 nmap 的网络扫描，并对薄弱环节进行跟进。"""
+    """Run an nmap-based network scan and follow up on weak links."""
     normalized_profile = profile.strip().lower()
     if normalized_profile not in {"adaptive", "fast", "thorough", "stealth"}:
-        err_console.print("[!] profile 必须是以下之一: adaptive, fast, thorough, stealth")
+        err_console.print("[!] profile must be one of: adaptive, fast, thorough, stealth")
         raise typer.Exit(1)
 
     detected_wifi = None
@@ -1852,23 +1853,23 @@ def network_scan(
 
     console.print(
         Panel(
-            f"目标: [bold]{scan_target}[/]\n"
+            f"Target: [bold]{scan_target}[/]\n"
             + (
-                f"Wi-Fi 接口: [bold]{detected_wifi.interface}[/] ({detected_wifi.address})\n"
+                f"Wi-Fi interface: [bold]{detected_wifi.interface}[/] ({detected_wifi.address})\n"
                 if detected_wifi
                 else ""
             )
             +
-            f"画像: [bold]{normalized_profile}[/]\n"
-            f"端口: [bold]{ports or '画像默认'}[/]\n"
-            f"跟进策略: [bold]{'安全探测' if safe_probes else '仅摘要'}[/]\n"
-            f"并行 Agent 数: [bold]{parallel_agents}[/]"
+            f"Profile: [bold]{normalized_profile}[/]\n"
+            f"Ports: [bold]{ports or 'profile default'}[/]\n"
+            f"Follow-up: [bold]{'safe probes' if safe_probes else 'summary only'}[/]\n"
+            f"Parallel agents: [bold]{parallel_agents}[/]"
             + (
-                f"（深度 {parallel_depth}，每个 worker {worker_rounds} 轮）"
+                f" (depth {parallel_depth}, {worker_rounds} rounds per worker)"
                 if parallel_agents > 1
                 else ""
             ),
-            title="网络扫描",
+            title="Network Scan",
             border_style="cyan",
         )
     )
@@ -2117,6 +2118,76 @@ def config_root(ctx: typer.Context) -> None:
     from vulnclaw.cli.tui import run_config_tui
 
     run_config_tui()
+
+
+# ── Language sub-command group ──────────────────────────────────────
+
+lang_app = typer.Typer(
+    name="language",
+    help="Manage interface language (en | zh-CN)",
+    short_help="Set or list the interface language",
+)
+app.add_typer(lang_app, name="language")
+app.add_typer(lang_app, name="lang")
+
+
+@lang_app.callback(invoke_without_command=True)
+def lang_root(ctx: typer.Context) -> None:
+    """Show the current language when no subcommand is provided."""
+    if ctx.resilient_parsing or ctx.invoked_subcommand is not None:
+        return
+    from vulnclaw.i18n import SUPPORTED_LANGUAGES, NATIVE_NAMES, get_current_lang
+
+    current = get_current_lang()
+    native = NATIVE_NAMES.get(current, current)
+    console.print(f"[*] Current language: [bold]{current}[/] ({native})")
+    console.print("[dim]Use [bold]vulnclaw lang set <code>[/] to change.")
+    console.print(f"[dim]Available: {', '.join(f'{c} ({NATIVE_NAMES.get(c, c)})' for c in SUPPORTED_LANGUAGES)}[/]")
+
+
+@lang_app.command("set")
+def lang_set(
+    code: str = typer.Argument(
+        ..., help="Language code: en (English) or zh-CN (简体中文)"
+    ),
+) -> None:
+    """Set the interface language."""
+    from vulnclaw.i18n import SUPPORTED_LANGUAGES, NATIVE_NAMES, _normalize_lang, init_i18n
+
+    normalized = _normalize_lang(code)
+    if normalized not in SUPPORTED_LANGUAGES:
+        err_console.print(
+            f"[!] Invalid language: [bold]{code}[/]. "
+            f"Available: {', '.join(SUPPORTED_LANGUAGES)}"
+        )
+        raise typer.Exit(1)
+
+    config = load_config()
+    config.session.language = normalized
+    save_config(config)
+    init_i18n(lang=normalized)
+    from vulnclaw.cli.tui import rebuild_translations
+    rebuild_translations()
+
+    native = NATIVE_NAMES.get(normalized, normalized)
+    console.print(f"[+] Language set to [bold]{normalized}[/] ({native}).")
+
+
+@lang_app.command("list")
+def lang_list() -> None:
+    """List available interface languages."""
+    from vulnclaw.i18n import SUPPORTED_LANGUAGES, NATIVE_NAMES, get_current_lang
+
+    current = get_current_lang()
+    console.print("[bold]Available Languages[/]")
+    console.print()
+    for code in SUPPORTED_LANGUAGES:
+        native = NATIVE_NAMES.get(code, code)
+        marker = " [green](current)[/]" if code == current else ""
+        console.print(f"  [bold cyan]{code}[/]{marker}")
+        console.print(f"    Name: {native}")
+        console.print()
+    console.print("[dim]Use [bold]vulnclaw lang set <code>[/] to switch languages.[/]")
 
 
 @config_app.command("set")

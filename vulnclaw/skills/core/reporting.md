@@ -1,43 +1,43 @@
 ---
 name: reporting
-description: 报告生成流程 — 生成结构化渗透测试报告和PoC
+description: Report generation workflow — generate structured penetration test reports and PoCs
 routing:
   phases: [reporting]
   task_types: [report]
 ---
 
-# 报告生成 Skill
+# Report Generation Skill
 
-将渗透测试结果整理为结构化报告，包含详细发现、PoC 脚本和修复建议。
+Compile penetration test results into structured reports with detailed findings, PoC scripts, and remediation recommendations.
 
-## 报告结构
+## Report Structure
 
-### 1. 项目概述
-- 测试目标
-- 测试时间
-- 测试范围
-- 测试方法
+### 1. Project Overview
+- Test target
+- Test time
+- Test scope
+- Test methodology
 
-### 2. 执行摘要
-- 高危发现概览
-- 风险等级分布
-- 关键建议
+### 2. Executive Summary
+- High-risk findings overview
+- Risk level distribution
+- Key recommendations
 
-### 3. 详细发现
-对每个漏洞：
-- 漏洞名称和严重等级
-- 漏洞类型
-- 影响范围
-- 验证步骤
-- 关键证据（请求/响应/截图）
-- PoC 脚本
-- 修复建议
+### 3. Detailed Findings
+For each vulnerability:
+- Vulnerability name and severity
+- Vulnerability type
+- Impact scope
+- Verification steps
+- Key evidence (request/response/screenshots)
+- PoC script
+- Remediation recommendations
 
-### 4. 攻击路径
-- 完整攻击链图示
-- 从初始访问到最终目标的路径
+### 4. Attack Paths
+- Complete attack chain diagram
+- Path from initial access to final objective
 
-### 5. 附件
-- PoC 脚本
-- 流量抓包
-- 截图证据
+### 5. Appendices
+- PoC scripts
+- Traffic captures
+- Screenshot evidence

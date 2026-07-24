@@ -86,10 +86,10 @@ class TestReportGenerator:
         output = str(tmp_path / "report_constraints.md")
         generate_report(session, output)
         content = Path(output).read_text(encoding="utf-8")
-        assert "任务约束" in content
-        assert "仅端口 443" in content
-        assert "仅主机 example.com" in content
-        assert "仅路径 /admin" in content
+        assert "Task Constraints" in content or "任务约束" in content
+        assert "443" in content
+        assert "example.com" in content
+        assert "/admin" in content
 
     def test_report_contains_constraint_violation_audit(self, tmp_path):
         from vulnclaw.report.generator import generate_report
@@ -102,7 +102,7 @@ class TestReportGenerator:
         output = str(tmp_path / "report_violations.md")
         generate_report(session, output)
         content = Path(output).read_text(encoding="utf-8")
-        assert "约束违规审计" in content
+        assert "Constraint Violation Audit" in content or "约束违规审计" in content
         assert "tool 'fetch'" in content
 
     def test_report_contains_findings(self, tmp_path):
@@ -116,8 +116,8 @@ class TestReportGenerator:
         assert "Cross-Site Scripting" in content
         assert "Information Disclosure" in content
         assert "PoC" in content
-        assert "证据等级" in content
-        assert "生命周期" in content
+        assert "Evidence Level" in content or "证据等级" in content
+        assert "Lifecycle" in content or "生命周期" in content
 
     def test_report_includes_location_and_repro_details(self, tmp_path):
         from vulnclaw.agent.context import SessionState, VulnerabilityFinding
@@ -137,7 +137,8 @@ class TestReportGenerator:
         output = str(tmp_path / "report_rce.md")
         generate_report(session, output)
         content = Path(output).read_text(encoding="utf-8")
-        assert "已验证漏洞定位与复现信息" in content
+        should = "Verified Vulnerability Details" in content or "已验证漏洞定位与复现信息" in content
+        assert should, f"Expected heading not found in:\n{content[:500]}"
         assert "https://example.com/admin/exec" in content
         assert "PoC" in content
 
@@ -158,7 +159,7 @@ class TestReportGenerator:
         session.add_finding(finding)
 
         output = str(tmp_path / "report_review.md")
-        generate_report(session, output)
+        generate_report(session, output, lang="zh-CN")
         content = Path(output).read_text(encoding="utf-8")
         assert "需人工复核" in content
         assert "候选项" in content or "待验证项" in content
@@ -195,7 +196,7 @@ class TestReportGenerator:
         )
 
         output = str(tmp_path / "report_llm_summary.md")
-        generate_report(session, output)
+        generate_report(session, output, lang="zh-CN")
         content = Path(output).read_text(encoding="utf-8")
         assert "这是通过 VulnClaw 对接的 LLM 生成的攻击路径摘要。" in content
 
@@ -237,7 +238,7 @@ class TestReportGenerator:
 
         session = SessionState(target="10.0.0.1")
         output = str(tmp_path / "report_empty.md")
-        generate_report(session, output)
+        generate_report(session, output, lang="zh-CN")
         content = Path(output).read_text(encoding="utf-8")
         # Report with no verified findings should mention 0 verified or show summary
         assert "10.0.0.1" in content
@@ -313,7 +314,7 @@ class TestReportGenerator:
             },
         }
 
-        output = generate_report_from_target_state(target_state)
+        output = generate_report_from_target_state(target_state, lang="zh-CN")
         content = Path(output).read_text(encoding="utf-8")
         assert "目标历史治理上下文" in content
         assert "continue_scan" in content
@@ -343,6 +344,7 @@ class TestReportGenerator:
             total_steps=10,
             rounds_per_cycle=100,
             output_path=str(tmp_path / "cycle.md"),
+            lang="zh-CN",
         )
         content = Path(output).read_text(encoding="utf-8")
         assert "已验证漏洞定位与复现信息" in content
@@ -399,6 +401,7 @@ class TestReportGenerator:
             rounds_per_cycle=100,
             output_path=str(tmp_path / "cycle2.md"),
             prev_verified_ids=prev_verified_ids,
+            lang="zh-CN",
         )
         content = Path(output).read_text(encoding="utf-8")
         # Only the one newly-verified finding counts as new this cycle.
@@ -422,6 +425,7 @@ class TestReportGenerator:
             total_steps=12,
             rounds_per_cycle=100,
             output_path=str(tmp_path / "cycle_llm.md"),
+            lang="zh-CN",
         )
         content = Path(output).read_text(encoding="utf-8")
         assert "来自 LLM 的持续渗透周期摘要" in content
@@ -639,6 +643,6 @@ class TestPoCBuilder:
         )
 
         output = str(tmp_path / "report_manual.md")
-        generate_report(session, output)
+        generate_report(session, output, lang="zh-CN")
         content = Path(output).read_text(encoding="utf-8")
         assert "需人工复核" in content

@@ -71,11 +71,15 @@ class ReproductionRequest:
         return " ".join(parts)
 
 
+from vulnclaw.i18n import get_current_lang
+
+
 def generate_solve_report(
     state: AgentState,
     output_path: str | Path | None = None,
     *,
     report_format: str = "markdown",
+    lang: str | None = None,
 ) -> Path:
     """Write a completed solve report and return its path."""
 
@@ -92,12 +96,15 @@ def generate_solve_report(
 
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(render_solve_report(state), encoding="utf-8")
+    output.write_text(render_solve_report(state, lang=lang), encoding="utf-8")
     return output
 
 
-def render_solve_report(state: AgentState) -> str:
+def render_solve_report(state: AgentState, lang: str | None = None) -> str:
     """Render a Markdown solve report from AgentState."""
+    if lang is None:
+        lang = get_current_lang()
+    use_en = lang.startswith("en")
 
     flags = extract_flags((state.final_answer or "") + "\n" + state.evidence_text())
     requests = extract_reproduction_requests(state)
@@ -117,17 +124,21 @@ def render_solve_report(state: AgentState) -> str:
     if flags:
         lines.append(f"- Flag / proof: `{flags[0]}`")
 
-    lines.extend(["", "## 1. 解题思路 / 攻击链"])
+    heading1 = "## 1. Solution Chain" if use_en else "## 1. 解题思路 / 攻击链"
+    heading2 = "## 2. Key Evidence" if use_en else "## 2. 关键证据"
+    heading3 = "## 3. Reproduction Requests" if use_en else "## 3. 复现请求包"
+
+    lines.extend(["", heading1])
     lines.extend(_render_solution_chain(state, sql_facts, key_requests, flags))
 
-    lines.extend(["", "## 2. 关键证据"])
+    lines.extend(["", heading2])
     if pinned:
         for fact in pinned[:24]:
             lines.append(f"- {fact}")
     else:
         lines.append("- No pinned facts were recorded.")
 
-    lines.extend(["", "## 3. 复现请求包"])
+    lines.extend(["", heading3])
     if key_requests:
         for index, request in enumerate(key_requests, start=1):
             title = request.label or f"{request.method} {request.url}"
@@ -319,31 +330,53 @@ def _render_solution_chain(
     sql_facts: list[str],
     requests: list[ReproductionRequest],
     flags: list[str],
+    lang: str | None = None,
 ) -> list[str]:
+    if lang is None:
+        lang = get_current_lang()
+    use_en = lang.startswith("en")
+
     lines: list[str] = []
     linked = [item.text for item in state.pinned_facts if "endpoint:" in item.text.lower()]
     forms = [item.text for item in state.pinned_facts if item.text.startswith("HTML ")]
 
-    if linked:
-        lines.append(f"1. 从页面/脚本证据中定位入口：{'; '.join(linked[:4])}。")
-    elif forms:
-        lines.append(f"1. 从页面表单证据中定位输入面：{'; '.join(forms[:4])}。")
-    else:
-        lines.append("1. 通过模型选择的 HTTP/浏览器工具建立目标页面和接口基线。")
+    if use_en:
+        if linked:
+            lines.append(f"1. Located entry points from page/script evidence: {'; '.join(linked[:4])}.")
+        elif forms:
+            lines.append(f"1. Located input surfaces from form evidence: {'; '.join(forms[:4])}.")
+        else:
+            lines.append("1. Established target page and API baseline using HTTP/browser tools.")
 
-    if sql_facts:
-        lines.append(f"2. 关键服务端表达式：`{sql_facts[0][len(_SOURCE_SQL_PREFIX):].strip()}`。")
-        lines.append(
-            "3. 利用点来自字符串拼接 SQL。优先从真实表达式推导 payload，而不是泛化枚举。"
-        )
-    else:
-        lines.append("2. 根据工具响应差异确认可控参数和可复现的利用路径。")
+        if sql_facts:
+            lines.append(f"2. Key server-side expression: `{sql_facts[0][len(_SOURCE_SQL_PREFIX):].strip()}`.")
+            lines.append("3. Injection point is string-concatenated SQL. Derive payload from actual expression, not generic enumeration.")
+        else:
+            lines.append("2. Confirmed controllable parameters and reproducible exploitation path via tool response differences.")
 
-    if requests:
-        payload_url = requests[0].url
-        lines.append(f"4. 成功复现请求：`{payload_url}`。")
-    if flags:
-        lines.append(f"5. 响应中出现目标 proof/flag：`{flags[0]}`。")
+        if requests:
+            lines.append(f"4. Successful reproduction request: `{requests[0].url}`.")
+        if flags:
+            lines.append(f"5. Target proof/flag in response: `{flags[0]}`.")
+    else:
+        if linked:
+            lines.append(f"1. 从页面/脚本证据中定位入口：{'; '.join(linked[:4])}。")
+        elif forms:
+            lines.append(f"1. 从页面表单证据中定位输入面：{'; '.join(forms[:4])}。")
+        else:
+            lines.append("1. 通过模型选择的 HTTP/浏览器工具建立目标页面和接口基线。")
+
+        if sql_facts:
+            lines.append(f"2. 关键服务端表达式：`{sql_facts[0][len(_SOURCE_SQL_PREFIX):].strip()}`。")
+            lines.append("3. 利用点来自字符串拼接 SQL。优先从真实表达式推导 payload，而不是泛化枚举。")
+        else:
+            lines.append("2. 根据工具响应差异确认可控参数和可复现的利用路径。")
+
+        if requests:
+            lines.append(f"4. 成功复现请求：`{requests[0].url}`。")
+        if flags:
+            lines.append(f"5. 响应中出现目标 proof/flag：`{flags[0]}`。")
+
     return lines
 
 

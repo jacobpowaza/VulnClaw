@@ -50,7 +50,7 @@ def test_verified_finding_inlines_http_capture(tmp_path):
     session = SessionState(target="http://app.test")
     session.add_finding(finding)
 
-    report_path = generate_report(session, output_path=str(run_dir / "report.md"))
+    report_path = generate_report(session, output_path=str(run_dir / "report.md"), lang="zh-CN")
     text = report_path.read_text(encoding="utf-8")
 
     assert "抓包复现证据" in text

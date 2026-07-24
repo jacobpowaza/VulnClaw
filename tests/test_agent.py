@@ -611,31 +611,52 @@ class TestMemoryStore:
 class TestPromptBuilder:
     """Test prompt building."""
 
-    def test_basic_prompt(self):
+    def test_basic_prompt_en(self):
         from vulnclaw.agent.prompts import build_system_prompt
 
-        prompt = build_system_prompt()
+        prompt = build_system_prompt(lang="en")
+        assert "VulnClaw" in prompt
+        assert "penetration testing" in prompt
+
+    def test_basic_prompt_zh(self):
+        from vulnclaw.agent.prompts import build_system_prompt
+
+        prompt = build_system_prompt(lang="zh-CN")
         assert "VulnClaw" in prompt
         assert "渗透测试" in prompt
 
-    def test_prompt_with_target(self):
+    def test_prompt_with_target_en(self):
         from vulnclaw.agent.prompts import build_system_prompt
 
-        prompt = build_system_prompt(target="192.168.1.100")
+        prompt = build_system_prompt(target="192.168.1.100", lang="en")
         assert "192.168.1.100" in prompt
+        assert "Target" in prompt
 
-    def test_prompt_with_phase(self):
+    def test_prompt_with_target_zh(self):
         from vulnclaw.agent.prompts import build_system_prompt
 
-        prompt = build_system_prompt(phase="信息收集")
+        prompt = build_system_prompt(target="192.168.1.100", lang="zh-CN")
+        assert "192.168.1.100" in prompt
+        assert "目标" in prompt
+
+    def test_prompt_with_phase_en(self):
+        from vulnclaw.agent.prompts import build_system_prompt
+
+        prompt = build_system_prompt(phase="信息收集", lang="en")
+        assert "Information Gathering" in prompt
+
+    def test_prompt_with_phase_zh(self):
+        from vulnclaw.agent.prompts import build_system_prompt
+
+        prompt = build_system_prompt(phase="信息收集", lang="zh-CN")
         assert "信息收集" in prompt
 
     def test_prompt_with_skill_context(self):
         from vulnclaw.agent.prompts import build_system_prompt
 
         prompt = build_system_prompt(skill_context="这是逆向分析的 Skill 上下文")
-        assert "逆向分析" in prompt
-        assert "Skill 上下文" in prompt
+        assert "这是逆向分析" in prompt
+        assert "Skill" in prompt
 
     def test_prompt_with_mcp_tools(self):
         from vulnclaw.agent.prompts import build_system_prompt
@@ -657,24 +678,45 @@ class TestPromptBuilder:
     def test_methodology_not_forced_into_base_prompt(self):
         from vulnclaw.agent.prompts import build_system_prompt
 
-        prompt = build_system_prompt()
-        assert "WAF 绕过" not in prompt
-        assert "base64" not in prompt
-        assert "工具使用" in prompt
+        prompt = build_system_prompt(lang="en")
+        assert "WAF" not in prompt  # WAF knowledge not in base prompt
+        # Core contract should be present
+        assert "Sandbox" in prompt or "沙盒" in prompt
 
-    def test_core_contract_included(self):
+    def test_core_contract_included_en(self):
         from vulnclaw.agent.prompts import build_system_prompt
 
-        prompt = build_system_prompt()
+        prompt = build_system_prompt(lang="en")
+        assert "Sandbox Mode" in prompt
+        assert "Evidence" in prompt
+
+    def test_core_contract_included_zh(self):
+        from vulnclaw.agent.prompts import build_system_prompt
+
+        prompt = build_system_prompt(lang="zh-CN")
         assert "沙盒模式" in prompt
         assert "证据冲突" in prompt
 
-    def test_all_phases_render(self):
+    def test_all_phases_render_en(self):
+        from vulnclaw.agent.prompts import build_system_prompt
+
+        phases_en = {
+            "信息收集": "Information Gathering",
+            "漏洞发现": "Vulnerability Discovery",
+            "漏洞利用": "Exploitation",
+            "后渗透": "Post-Exploitation",
+            "报告生成": "Report Generation",
+        }
+        for phase, expected in phases_en.items():
+            prompt = build_system_prompt(phase=phase, lang="en")
+            assert expected in prompt
+
+    def test_all_phases_render_zh(self):
         from vulnclaw.agent.prompts import build_system_prompt
 
         phases = ["信息收集", "漏洞发现", "漏洞利用", "后渗透", "报告生成"]
         for phase in phases:
-            prompt = build_system_prompt(phase=phase)
+            prompt = build_system_prompt(phase=phase, lang="zh-CN")
             assert phase in prompt
 
 
@@ -804,6 +846,8 @@ class TestAgentCore:
         assert "VulnClaw" in prompt
 
     def test_build_system_prompt_auto_mode(self):
+        from vulnclaw.i18n import init_i18n
+        init_i18n(lang="zh-CN")
         agent = self._make_agent()
         prompt = agent._build_system_prompt(
             target="10.0.0.1", auto_mode=True, user_input="渗透测试"

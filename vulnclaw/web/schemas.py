@@ -257,6 +257,7 @@ class ConfigView(BaseModel):
     model: str
     base_url: str
     api_key_configured: bool
+    extra_models: list[str] = Field(default_factory=list)
     output_dir: str
     max_rounds: int
     persistent_rounds_per_cycle: int
@@ -272,6 +273,7 @@ class ConfigUpdateRequest(BaseModel):
     provider: Optional[str] = Field(default=None, min_length=1, max_length=64)
     model: Optional[str] = Field(default=None, min_length=1, max_length=160)
     base_url: Optional[str] = Field(default=None, max_length=512)
+    extra_models: Optional[list[str]] = Field(default=None, max_length=50)
     output_dir: Optional[str] = Field(default=None, min_length=1, max_length=1024)
     max_rounds: Optional[int] = Field(default=None, ge=1, le=100)
     persistent_rounds_per_cycle: Optional[int] = Field(default=None, ge=1, le=1000)

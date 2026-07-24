@@ -1433,8 +1433,9 @@ def _cmd_config(session: dict[str, Any], args: str) -> None:
             config.llm.api_key = value.strip()
         base_url = config.llm.base_url
         api_key = config.llm.api_key
-        # 缺少 base_url/api_key 时跳过获取，直接手动输入
-        if not base_url or not api_key:
+        is_opencode = str(getattr(config.llm, "provider", "") or "").lower() == "opencode"
+        # OpenCode 不需要 API Key；其它 provider 缺少 key 时跳过获取
+        if not base_url or (not api_key and not is_opencode):
             _set_prompt_input(session, _("tui.prompt_enter_model_fallback", model=config.llm.model), _on_model_input, default=config.llm.model)
             return
         # prompt_toolkit 版本：同步获取模型列表
@@ -2062,10 +2063,12 @@ def _prompt_model_value(screen: Console, config) -> str:
     models: list[str] = []
     base_url = config.llm.base_url
     api_key = config.llm.primary_key()
+    is_opencode = str(getattr(config.llm, "provider", "") or "").lower() == "opencode"
 
-    if base_url and api_key:
+    if base_url and (api_key or is_opencode):
         screen.print(f"[{C_MUTED}]{_('tui.fetching_models')}[/]")
-        models = fetch_provider_models(base_url, api_key)
+        extra = getattr(config.llm, "extra_models", None) or []
+        models = fetch_provider_models(base_url, api_key, extra_models=extra)
 
     if models:
         _render_model_choices(screen, models, current)
@@ -2079,7 +2082,7 @@ def _prompt_model_value(screen: Console, config) -> str:
             screen.print(f"[{C_WARNING}]Model number out of range; using '{raw}' as a custom model id.[/]")
         return raw
 
-    if base_url and api_key:
+    if base_url and (api_key or is_opencode):
         screen.print(f"[{C_WARNING}]No models returned; enter a model id manually.[/]")
     raw = _config_prompt_ask(screen, f"Model [current: {current}]", default="")
     if raw == "!clear":
@@ -2102,6 +2105,8 @@ def _render_config_summary(screen: Console, config) -> None:
     llm.add_row("OAuth token URL", config.llm.oauth_token_url or "(login-managed)")
     llm.add_row("OAuth client id", config.llm.oauth_client_id or "(login-managed)")
     llm.add_row("Reasoning", config.llm.reasoning_effort)
+    extra_models = getattr(config.llm, "extra_models", None) or []
+    llm.add_row("Extra models", ", ".join(extra_models) if extra_models else "(none)")
 
     session = Table(title="Session", box=box.ROUNDED, border_style=C_BORDER_SUBTLE)
     session.add_column("Field", style=f"bold {C_SECONDARY}")

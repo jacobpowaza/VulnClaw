@@ -271,16 +271,23 @@ class AgentCore:
         return True
 
     def _get_client(self):
-        """Lazy-initialize OpenAI client with dynamic credential resolution.
+        """Lazy-initialize LLM client.
 
-        Supports static API keys as well as keyless / short-lived bearer tokens
-        (env / file / command / WIF). The token is re-resolved on every call so
-        rotated or just-minted access tokens are picked up without rebuilding the
-        client; ``client.api_key`` becomes the ``Authorization: Bearer`` value.
+        For the ``opencode`` provider a duck-typed subprocess client is
+        returned that drives ``opencode run`` under the hood (no API key
+        needed).  For all other providers a standard OpenAI client is
+        created with static or OAuth-resolved credentials.
         """
-        from vulnclaw.config.token_provider import load_oauth_tokens, resolve_llm_token
-
         llm = self.config.llm
+
+        # ── OpenCode provider: subprocess-based, no API key ───────────
+        if str(getattr(llm, "provider", "") or "").lower() == "opencode":
+            if self._client is None:
+                from vulnclaw.config.opencode_provider import OpenCodeClient
+                self._client = OpenCodeClient(llm.model)
+            return self._client
+
+        from vulnclaw.config.token_provider import load_oauth_tokens, resolve_llm_token
 
         # ── ChatGPT subscription: auto-start the built-in bridge proxy ──
         # The subscription token only works against the ChatGPT backend, so we
@@ -305,8 +312,6 @@ class AgentCore:
 
         auth_mode = str(getattr(llm, "auth_mode", "") or "static").strip().lower()
         if auth_mode in ("", "static"):
-            # Respect the failover rotation index rather than always resolving
-            # the primary key, so rotate_api_key() actually switches keys.
             token = self._current_api_key()
         else:
             token = resolve_llm_token(llm)
@@ -319,7 +324,6 @@ class AgentCore:
             except ImportError:
                 raise RuntimeError("请安装 openai 包: pip install openai")
         elif token:
-            # Refresh the bearer token in place for rotating / short-lived creds.
             self._client.api_key = token
         return self._client
 
@@ -649,7 +653,8 @@ class AgentCore:
 
     def _build_openai_tools(self) -> list[dict]:
         """Build OpenAI function calling schema from MCP tools + built-in tools."""
-        return build_openai_tools(self.mcp_manager, active_role=self.active_role)
+        from vulnclaw.i18n import get_current_lang
+        return build_openai_tools(self.mcp_manager, active_role=self.active_role, lang=get_current_lang())
 
     # ── Python code executor ─────────────────────────────────────────
 

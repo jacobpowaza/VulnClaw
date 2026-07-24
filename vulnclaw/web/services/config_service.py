@@ -16,6 +16,7 @@ def get_public_config() -> ConfigView:
         model=config.llm.model,
         base_url=config.llm.base_url,
         api_key_configured=bool(config.llm.api_key),
+        extra_models=list(getattr(config.llm, "extra_models", None) or []),
         output_dir=str(config.session.output_dir),
         max_rounds=config.session.max_rounds,
         persistent_rounds_per_cycle=config.session.persistent_rounds_per_cycle,
@@ -38,6 +39,8 @@ def update_public_config(payload: ConfigUpdateRequest) -> ConfigView:
         config.llm.model = payload.model
     if payload.base_url is not None:
         config.llm.base_url = payload.base_url
+    if payload.extra_models is not None:
+        config.llm.extra_models = payload.extra_models
     if payload.output_dir is not None:
         config.session.output_dir = Path(payload.output_dir)
     if payload.max_rounds is not None:

@@ -408,14 +408,33 @@ def list_providers() -> list[dict[str, str]]:
     return result
 
 
-def fetch_provider_models(base_url: str, api_key: str, timeout: float = 10.0) -> list[str]:
+def fetch_provider_models(
+    base_url: str,
+    api_key: str,
+    timeout: float = 10.0,
+    extra_models: list[str] | None = None,
+) -> list[str]:
     """Fetch available models from a provider's OpenAI-compatible API.
 
     Uses the OpenAI SDK's ``client.models.list()`` endpoint.
     Returns a sorted list of model ID strings.  Returns an empty list
     on any error (network, auth, timeout, etc.).
+
+    Special case: when *base_url* is ``opencode://local`` or contains
+    ``opencode.ai`` the local OpenCode CLI is queried instead (no API key
+    required).  *extra_models* is forwarded to ``discover_models`` so that
+    user-configured custom models appear in the picker.
     """
-    if not base_url or not api_key:
+    if not base_url:
+        return []
+    # OpenCode provider: use local CLI for model discovery
+    if "opencode" in base_url.lower():
+        try:
+            from vulnclaw.config.opencode_provider import discover_models
+            return discover_models(extra_models=extra_models)
+        except Exception:
+            return []
+    if not api_key:
         return []
     try:
         client = make_openai_client(api_key=api_key, base_url=base_url, timeout=timeout)

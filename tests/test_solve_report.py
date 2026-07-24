@@ -75,7 +75,7 @@ def test_extract_reproduction_requests_prefers_flag_response():
 
 
 def test_render_solve_report_contains_replay_and_reasoning():
-    report = render_solve_report(_completed_state())
+    report = render_solve_report(_completed_state(), lang="zh-CN")
 
     assert "# VulnClaw Solve Report" in report
     assert "ctfshow{report-ok}" in report
@@ -88,7 +88,7 @@ def test_render_solve_report_contains_replay_and_reasoning():
 
 
 def test_generate_solve_report_writes_markdown(tmp_path):
-    output = generate_solve_report(_completed_state(), tmp_path / "solve.md")
+    output = generate_solve_report(_completed_state(), tmp_path / "solve.md", lang="zh-CN")
 
     assert output == Path(tmp_path / "solve.md")
     assert output.exists()
